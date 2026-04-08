@@ -16,6 +16,6 @@ export function getGroqClient(): Groq {
   return client;
 }
 
-export const TTS_MODEL = "playai-tts";
+export const TTS_MODEL = "canopylabs/orpheus-v1-english";
 export const STT_MODEL = "whisper-large-v3-turbo";
 export const CHAT_MODEL = "openai/gpt-oss-120b";

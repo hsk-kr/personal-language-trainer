@@ -1,4 +1,4 @@
-import { getGroqClient, STT_MODEL } from "@/lib/groq";
+import { STT_MODEL } from "@/lib/groq";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -13,15 +13,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const groq = getGroqClient();
-    const transcription = await groq.audio.transcriptions.create({
-      model: STT_MODEL,
-      file: audioFile,
-      language: "en",
-      response_format: "json",
-    });
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "GROQ_API_KEY not set" },
+        { status: 500 }
+      );
+    }
 
-    const text = transcription.text?.trim();
+    console.log("[STT] Sending to Groq, file size:", audioFile.size, "key:", apiKey.slice(0, 4) + "..." + apiKey.slice(-4));
+
+    // Use fetch directly instead of SDK — matches working curl
+    const groqFormData = new FormData();
+    groqFormData.append("file", audioFile, "recording.webm");
+    groqFormData.append("model", STT_MODEL);
+    groqFormData.append("language", "en");
+    groqFormData.append("response_format", "json");
+
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/audio/transcriptions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: groqFormData,
+      }
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error("[STT] Groq error:", response.status, errorBody);
+      return NextResponse.json(
+        { error: `Groq STT error: ${response.status}` },
+        { status: 502 }
+      );
+    }
+
+    const result = await response.json();
+    const text = result.text?.trim();
+
     if (!text) {
       return NextResponse.json(
         { error: "No speech detected" },
@@ -29,9 +60,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("[STT] Transcribed:", text);
     return NextResponse.json({ text });
   } catch (error) {
-    console.error("STT error:", error);
+    console.error("[STT] Error:", error instanceof Error ? error.message : error);
     return NextResponse.json(
       { error: "Failed to transcribe audio" },
       { status: 500 }

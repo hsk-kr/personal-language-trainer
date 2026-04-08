@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Personal Language Trainer
 
-## Getting Started
+Practice English naturally by chatting with AI friends who have unique personalities and voices. No subscriptions — just pay-per-use API costs (~$5/mo for daily use).
 
-First, run the development server:
+## How It Works
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Pick a friend, start talking. Your mic stays on, and when you pause, your speech gets transcribed, your friend thinks of a response, and speaks it back to you. Like a real conversation.
+
+```
+You speak → Whisper STT → GPT-OSS-120B → PlayAI TTS → Friend speaks back
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Friends
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Friend | Personality | Vibe |
+|--------|------------|------|
+| Jake | Gaming buddy & tech bro | Chill, slang, memes |
+| Mia | World traveler & storyteller | Energetic, curious |
+| Sam | Deep thinker & debater | Calm, thought-provoking |
+| Luna | Creative soul & dreamer | Warm, empathetic |
+| Alex | Class clown & roast master | Sarcastic, hilarious |
+| Emma | Supportive bestie & hype woman | Encouraging, positive |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Setup
 
-## Learn More
+1. Get a Groq API key from [console.groq.com](https://console.groq.com/keys)
 
-To learn more about Next.js, take a look at the following resources:
+2. Create `.env.local`:
+   ```
+   GROQ_API_KEY=your_key_here
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Install and run:
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. Open [http://localhost:3000](http://localhost:3000)
 
-## Deploy on Vercel
+## Tech Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Next.js** (App Router, TypeScript, Tailwind CSS)
+- **Groq API** — all AI services through one provider:
+  - STT: Whisper Large v3 Turbo
+  - LLM: GPT-OSS 120B
+  - TTS: PlayAI TTS
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Cost
+
+All Groq, pay-per-use. No subscriptions.
+
+| Service | Rate | ~Monthly (10 min/day) |
+|---------|------|----------------------|
+| STT (Whisper) | $0.04/hr | ~$0.20 |
+| LLM (GPT-OSS-120B) | $0.15-0.60/M tokens | ~$1.20 |
+| TTS (PlayAI) | $22/M chars | ~$3.30 |
+| **Total** | | **~$4.70** |
+
+## License
+
+MIT

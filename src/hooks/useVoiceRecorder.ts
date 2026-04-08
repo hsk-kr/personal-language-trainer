@@ -103,17 +103,30 @@ export function useVoiceRecorder(
 
       const buf = new Uint8Array(analyser.frequencyBinCount);
 
+      let lastLogTime = 0;
+
       const tick = () => {
         if (!analyserRef.current) return;
         analyserRef.current.getByteFrequencyData(buf);
         const avg = buf.reduce((a, b) => a + b, 0) / buf.length;
         setVolume(avg);
 
+        // Debug log every 2 seconds
+        const now = Date.now();
+        if (now - lastLogTime > 2000) {
+          console.log(`[VAD] volume: ${avg.toFixed(1)}, threshold: ${silenceThreshold}, speaking: ${hasSpeechRef.current}, chunks: ${chunksRef.current.length}`);
+          lastLogTime = now;
+        }
+
         if (avg > silenceThreshold) {
+          if (!hasSpeechRef.current) {
+            console.log("[VAD] Speech detected! volume:", avg.toFixed(1));
+          }
           hasSpeechRef.current = true;
           setStatus("detecting-speech");
           clearSilenceTimer();
         } else if (hasSpeechRef.current && !silenceTimerRef.current) {
+          console.log("[VAD] Silence detected, starting timer...");
           silenceTimerRef.current = setTimeout(() => {
             hasSpeechRef.current = false;
             setStatus("listening");
@@ -122,8 +135,11 @@ export function useVoiceRecorder(
             const blob = new Blob(chunksRef.current, { type: mimeType });
             chunksRef.current = [];
 
+            console.log("[VAD] Speech ended, blob size:", blob.size);
             if (blob.size > 1000) {
               onSpeechEndRef.current(blob);
+            } else {
+              console.log("[VAD] Blob too small, ignoring");
             }
           }, silenceTimeout);
         }
@@ -131,6 +147,7 @@ export function useVoiceRecorder(
         rafRef.current = requestAnimationFrame(tick);
       };
 
+      console.log("[VAD] Started, threshold:", silenceThreshold);
       tick();
     } catch (err) {
       console.error("Microphone access denied:", err);

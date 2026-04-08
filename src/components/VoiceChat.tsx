@@ -17,6 +17,10 @@ export function VoiceChat({ friend }: VoiceChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesRef = useRef<readonly Message[]>([]);
+  const recorderRef = useRef<{
+    start: () => Promise<void>;
+    stop: () => void;
+  }>({ start: async () => {}, stop: () => {} });
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -48,19 +52,17 @@ export function VoiceChat({ friend }: VoiceChatProps) {
 
   const processConversation = useCallback(
     async (audioBlob: Blob) => {
-      recorder.stop();
+      console.log("[VoiceChat] onSpeechEnd fired, blob size:", audioBlob.size);
+      recorderRef.current.stop();
       setStatus("processing");
       setError(null);
 
       try {
         // Step 1: Speech-to-Text
         const sttFormData = new FormData();
-        sttFormData.append(
-          "audio",
-          audioBlob,
-          "recording.webm"
-        );
+        sttFormData.append("audio", audioBlob, "recording.webm");
 
+        console.log("[VoiceChat] Sending to STT...");
         const sttRes = await fetch("/api/stt", {
           method: "POST",
           body: sttFormData,
@@ -72,9 +74,11 @@ export function VoiceChat({ friend }: VoiceChatProps) {
         }
 
         const { text: userText } = await sttRes.json();
+        console.log("[VoiceChat] STT result:", userText);
         addMessage("user", userText);
 
         // Step 2: Chat
+        console.log("[VoiceChat] Sending to Chat...");
         const chatRes = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -91,10 +95,12 @@ export function VoiceChat({ friend }: VoiceChatProps) {
         }
 
         const { text: responseText } = await chatRes.json();
+        console.log("[VoiceChat] Chat response:", responseText);
         addMessage("assistant", responseText);
 
         // Step 3: Text-to-Speech
         setStatus("speaking");
+        console.log("[VoiceChat] Sending to TTS...");
         const ttsRes = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -109,8 +115,8 @@ export function VoiceChat({ friend }: VoiceChatProps) {
         }
 
         const audioBuffer = await ttsRes.arrayBuffer();
-        const audioBlob2 = new Blob([audioBuffer], { type: "audio/wav" });
-        const audioUrl = URL.createObjectURL(audioBlob2);
+        const ttsBlob = new Blob([audioBuffer], { type: "audio/wav" });
+        const audioUrl = URL.createObjectURL(ttsBlob);
 
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
@@ -128,18 +134,18 @@ export function VoiceChat({ friend }: VoiceChatProps) {
         });
 
         // Resume listening
+        console.log("[VoiceChat] Resuming mic...");
         setStatus("listening");
-        recorder.start();
+        recorderRef.current.start();
       } catch (err) {
-        console.error("Conversation error:", err);
+        console.error("[VoiceChat] Error:", err);
         setError(err instanceof Error ? err.message : "Something went wrong");
         setStatus("error");
 
-        // Auto-recover after 2 seconds
         setTimeout(() => {
           setStatus("listening");
           setError(null);
-          recorder.start();
+          recorderRef.current.start();
         }, 2000);
       }
     },
@@ -148,43 +154,40 @@ export function VoiceChat({ friend }: VoiceChatProps) {
 
   const recorder = useVoiceRecorder({
     onSpeechEnd: processConversation,
-    silenceThreshold: 12,
+    silenceThreshold: 10,
     silenceTimeout: 1500,
   });
 
+  // Keep ref in sync — breaks circular dependency
+  recorderRef.current = { start: recorder.start, stop: recorder.stop };
+
   const handleStartChat = useCallback(() => {
     setStatus("listening");
-    recorder.start();
-  }, [recorder]);
+    recorderRef.current.start();
+  }, []);
 
   const handleStopChat = useCallback(() => {
-    recorder.stop();
+    recorderRef.current.stop();
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
     setStatus("idle");
-  }, [recorder]);
+  }, []);
 
   useEffect(() => {
     return () => {
-      recorder.stop();
+      recorderRef.current.stop();
       if (audioRef.current) {
         audioRef.current.pause();
       }
     };
-  }, [recorder]);
+  }, []);
 
   const displayStatus: ConversationStatus =
-    status === "listening" || status === "idle" || status === "error"
-      ? status
-      : status === "processing"
-        ? "processing"
-        : status === "speaking"
-          ? "speaking"
-          : recorder.status === "detecting-speech"
-            ? "detecting-speech"
-            : status;
+    status === "listening" && recorder.status === "detecting-speech"
+      ? "detecting-speech"
+      : status;
 
   return (
     <div className="flex h-full flex-col">
@@ -238,7 +241,7 @@ export function VoiceChat({ friend }: VoiceChatProps) {
         </div>
       )}
 
-      {/* Mic indicator */}
+      {/* Mic indicator + debug volume */}
       {status !== "idle" && (
         <div className="border-t border-white/5 bg-neutral-900/50 px-4 py-6">
           <div className="flex items-center justify-center gap-6">
@@ -266,6 +269,10 @@ export function VoiceChat({ friend }: VoiceChatProps) {
                 />
               </svg>
             </button>
+          </div>
+          {/* Debug: show volume level */}
+          <div className="mt-2 text-center text-xs text-neutral-600">
+            vol: {Math.round(recorder.volume)} | status: {recorder.status}
           </div>
         </div>
       )}
