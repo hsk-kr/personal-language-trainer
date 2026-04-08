@@ -21,7 +21,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("[STT] Sending to Groq, file size:", audioFile.size, "key:", apiKey.slice(0, 4) + "..." + apiKey.slice(-4));
+    if (audioFile.size > 10 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "Audio file too large" },
+        { status: 413 }
+      );
+    }
+
+    console.log("[STT] Sending to Groq, file size:", audioFile.size);
 
     // Use fetch directly instead of SDK — matches working curl
     const groqFormData = new FormData();

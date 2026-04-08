@@ -5,9 +5,16 @@ export async function POST(request: NextRequest) {
   try {
     const { text, voice } = await request.json();
 
-    if (!text) {
+    if (!text || typeof text !== "string") {
       return NextResponse.json(
         { error: "No text provided" },
+        { status: 400 }
+      );
+    }
+
+    if (text.length > 2000) {
+      return NextResponse.json(
+        { error: "Text too long" },
         { status: 400 }
       );
     }

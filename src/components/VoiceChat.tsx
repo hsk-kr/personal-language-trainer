@@ -304,10 +304,12 @@ export function VoiceChat({ friend }: VoiceChatProps) {
               </svg>
             </button>
           </div>
-          {/* Debug: show volume level */}
-          <div className="mt-2 text-center text-xs text-neutral-600">
-            vol: {Math.round(recorder.volume)} | status: {recorder.status}
-          </div>
+          {/* Debug: show volume level (dev only) */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="mt-2 text-center text-xs text-neutral-600">
+              vol: {Math.round(recorder.volume)} | status: {recorder.status}
+            </div>
+          )}
         </div>
       )}
     </div>

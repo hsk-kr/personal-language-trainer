@@ -18,9 +18,16 @@ export async function POST(request: NextRequest) {
     const body: ChatRequestBody = await request.json();
     const { friendId, messages, userMessage } = body;
 
-    if (!friendId || !userMessage) {
+    if (!friendId || typeof friendId !== "string" || friendId.length > 50) {
       return NextResponse.json(
-        { error: "Missing friendId or userMessage" },
+        { error: "Invalid friendId" },
+        { status: 400 }
+      );
+    }
+
+    if (!userMessage || typeof userMessage !== "string" || userMessage.length > 2000) {
+      return NextResponse.json(
+        { error: "Invalid or missing userMessage" },
         { status: 400 }
       );
     }
