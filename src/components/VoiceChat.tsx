@@ -50,6 +50,19 @@ export function VoiceChat({ friend }: VoiceChatProps) {
     [scrollToBottom]
   );
 
+  const playAudio = useCallback(async (audioBuffer: ArrayBuffer) => {
+    const blob = new Blob([audioBuffer], { type: "audio/wav" });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audioRef.current = audio;
+
+    await new Promise<void>((resolve, reject) => {
+      audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Audio playback failed")); };
+      audio.play().catch(reject);
+    });
+  }, []);
+
   const processConversation = useCallback(
     async (audioBlob: Blob) => {
       console.log("[VoiceChat] onSpeechEnd fired, blob size:", audioBlob.size);
@@ -114,24 +127,7 @@ export function VoiceChat({ friend }: VoiceChatProps) {
           throw new Error("TTS failed");
         }
 
-        const audioBuffer = await ttsRes.arrayBuffer();
-        const ttsBlob = new Blob([audioBuffer], { type: "audio/wav" });
-        const audioUrl = URL.createObjectURL(ttsBlob);
-
-        const audio = new Audio(audioUrl);
-        audioRef.current = audio;
-
-        await new Promise<void>((resolve, reject) => {
-          audio.onended = () => {
-            URL.revokeObjectURL(audioUrl);
-            resolve();
-          };
-          audio.onerror = () => {
-            URL.revokeObjectURL(audioUrl);
-            reject(new Error("Audio playback failed"));
-          };
-          audio.play().catch(reject);
-        });
+        await playAudio(await ttsRes.arrayBuffer());
 
         // Resume listening
         console.log("[VoiceChat] Resuming mic...");
@@ -149,7 +145,7 @@ export function VoiceChat({ friend }: VoiceChatProps) {
         }, 2000);
       }
     },
-    [friend.id, friend.voice, addMessage]
+    [friend.id, friend.voice, addMessage, playAudio]
   );
 
   const recorder = useVoiceRecorder({
@@ -161,10 +157,48 @@ export function VoiceChat({ friend }: VoiceChatProps) {
   // Keep ref in sync — breaks circular dependency
   recorderRef.current = { start: recorder.start, stop: recorder.stop };
 
-  const handleStartChat = useCallback(() => {
-    setStatus("listening");
-    recorderRef.current.start();
-  }, []);
+  const handleStartChat = useCallback(async () => {
+    setStatus("processing");
+    setError(null);
+
+    try {
+      // Friend greets first — like a real human
+      const chatRes = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          friendId: friend.id,
+          messages: [],
+          userMessage: "[The user just joined. Greet them naturally — short and casual, like a friend who's happy to see them.]",
+        }),
+      });
+
+      if (!chatRes.ok) throw new Error("Greeting failed");
+      const { text: greeting } = await chatRes.json();
+      addMessage("assistant", greeting);
+
+      // Speak the greeting
+      setStatus("speaking");
+      const ttsRes = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: greeting, voice: friend.voice }),
+      });
+
+      if (ttsRes.ok) {
+        await playAudio(await ttsRes.arrayBuffer());
+      }
+
+      // Now start listening
+      setStatus("listening");
+      recorderRef.current.start();
+    } catch (err) {
+      console.error("[VoiceChat] Greeting error:", err);
+      // Fall back to just listening
+      setStatus("listening");
+      recorderRef.current.start();
+    }
+  }, [friend.id, friend.voice, addMessage, playAudio]);
 
   const handleStopChat = useCallback(() => {
     recorderRef.current.stop();

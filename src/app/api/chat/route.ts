@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           model: CHAT_MODEL,
           messages: [
-            { role: "system", content: friend.personality },
+            { role: "system", content: friend.personality + "\n\nIMPORTANT: Your response will be read aloud by a text-to-speech engine. NEVER use markdown, asterisks, bullet points, emojis, or any special formatting. Write plain conversational text only. Use quotation marks for quoting words." },
             ...messages.slice(-20).map((m) => ({
               role: m.role,
               content: m.content,

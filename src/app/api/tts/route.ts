@@ -20,7 +20,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("[TTS] Generating speech, voice:", voice, "text length:", text.length);
+    // Strip markdown and special characters for clean TTS
+    const cleanText = text
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "")
+      .replace(/__/g, "")
+      .replace(/#{1,6}\s/g, "")
+      .replace(/[`~]/g, "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .trim();
+
+    console.log("[TTS] Generating speech, voice:", voice, "text length:", cleanText.length);
 
     const response = await fetch(
       "https://api.groq.com/openai/v1/audio/speech",
@@ -33,7 +43,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           model: TTS_MODEL,
           voice: voice || "Fritz-PlayAI",
-          input: text,
+          input: cleanText,
           response_format: "wav",
         }),
       }

@@ -57,6 +57,3 @@ All Groq, pay-per-use. No subscriptions.
 | TTS (PlayAI) | $22/M chars | ~$3.30 |
 | **Total** | | **~$4.70** |
 
-## License
-
-MIT
