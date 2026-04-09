@@ -111,23 +111,27 @@ export function VoiceChat({ friend }: VoiceChatProps) {
         console.log("[VoiceChat] Chat response:", responseText);
         addMessage("assistant", responseText);
 
-        // Step 3: Text-to-Speech
+        // Step 3: Text-to-Speech (non-fatal — skip audio if TTS fails)
         setStatus("speaking");
         console.log("[VoiceChat] Sending to TTS...");
-        const ttsRes = await fetch("/api/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text: responseText,
-            voice: friend.voice,
-          }),
-        });
+        try {
+          const ttsRes = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              text: responseText,
+              voice: friend.voice,
+            }),
+          });
 
-        if (!ttsRes.ok) {
-          throw new Error("TTS failed");
+          if (ttsRes.ok) {
+            await playAudio(await ttsRes.arrayBuffer());
+          } else {
+            console.warn("[VoiceChat] TTS failed:", ttsRes.status, await ttsRes.text());
+          }
+        } catch (ttsErr) {
+          console.warn("[VoiceChat] TTS error (skipping audio):", ttsErr);
         }
-
-        await playAudio(await ttsRes.arrayBuffer());
 
         // Resume listening
         console.log("[VoiceChat] Resuming mic...");
