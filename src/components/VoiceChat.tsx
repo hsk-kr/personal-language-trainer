@@ -133,7 +133,8 @@ export function VoiceChat({ friend }: VoiceChatProps) {
           console.warn("[VoiceChat] TTS error (skipping audio):", ttsErr);
         }
 
-        // Resume listening
+        // Resume listening (small delay to avoid echo pickup)
+        await new Promise((r) => setTimeout(r, 500));
         console.log("[VoiceChat] Resuming mic...");
         setStatus("listening");
         recorderRef.current.start();

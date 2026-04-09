@@ -67,6 +67,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Whisper hallucinates these phrases on silence/noise — filter them out
+    const HALLUCINATIONS = [
+      "thank you", "thanks for watching", "thanks for listening",
+      "subscribe", "like and subscribe", "see you next time",
+      "bye", "goodbye", "thank you for watching",
+      "thanks", "you", ".", "..", "...",
+    ];
+
+    if (HALLUCINATIONS.includes(text.toLowerCase().replace(/[.!?,]/g, "").trim())) {
+      console.log("[STT] Filtered hallucination:", text);
+      return NextResponse.json(
+        { error: "No speech detected" },
+        { status: 422 }
+      );
+    }
+
     console.log("[STT] Transcribed:", text);
     return NextResponse.json({ text });
   } catch (error) {
