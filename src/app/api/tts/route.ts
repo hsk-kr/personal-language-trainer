@@ -1,6 +1,30 @@
 import { getFriendById } from "@/lib/friends";
 import { NextRequest, NextResponse } from "next/server";
 
+function pcmToWav(pcmData: Buffer, sampleRate: number = 24000): Buffer {
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const header = Buffer.alloc(44);
+
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + pcmData.length, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(pcmData.length, 40);
+
+  return Buffer.concat([header, pcmData]);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { text, friendId } = await request.json();
@@ -37,10 +61,8 @@ export async function POST(request: NextRequest) {
       .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
       .trim();
 
-    // Get friend's voice settings
     const friend = friendId ? getFriendById(friendId) : null;
     const voiceName = friend?.voice ?? "Puck";
-    const voiceStyle = friend?.voiceStyle ?? "Speak in a natural, conversational tone.";
 
     console.log("[TTS] Gemini TTS, voice:", voiceName, "text length:", cleanText.length);
 
@@ -52,7 +74,9 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text: cleanText }],
+              parts: [{ text: friend?.voiceStyle
+                ? `${friend.voiceStyle}: ${cleanText}`
+                : cleanText }],
             },
           ],
           generationConfig: {
@@ -64,9 +88,6 @@ export async function POST(request: NextRequest) {
                 },
               },
             },
-          },
-          systemInstruction: {
-            parts: [{ text: voiceStyle }],
           },
         }),
       }
@@ -85,23 +106,30 @@ export async function POST(request: NextRequest) {
     const audioData =
       result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     const mimeType =
-      result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType ??
-      "audio/wav";
+      result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType ?? "";
 
     if (!audioData) {
-      console.error("[TTS] No audio in response:", JSON.stringify(result).slice(0, 500));
+      console.error("[TTS] No audio in response");
       return NextResponse.json(
         { error: "No audio generated" },
         { status: 502 }
       );
     }
 
-    const audioBuffer = Buffer.from(audioData, "base64");
+    let audioBuffer = Buffer.from(audioData, "base64");
+
+    // Gemini returns raw PCM — convert to WAV for browser playback
+    if (mimeType.includes("pcm") || mimeType.includes("L16")) {
+      const rateMatch = mimeType.match(/rate=(\d+)/);
+      const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
+      audioBuffer = pcmToWav(audioBuffer, sampleRate);
+    }
+
     console.log("[TTS] Generated audio, size:", audioBuffer.length);
 
     return new NextResponse(audioBuffer, {
       headers: {
-        "Content-Type": mimeType,
+        "Content-Type": "audio/wav",
         "Content-Length": audioBuffer.length.toString(),
       },
     });
