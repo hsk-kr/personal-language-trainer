@@ -55,7 +55,9 @@ export function useVoiceRecorder(
     if (recorderRef.current?.state !== "inactive") {
       recorderRef.current?.stop();
     }
-    contextRef.current?.close();
+    if (contextRef.current?.state !== "closed") {
+      contextRef.current?.close().catch(() => {});
+    }
     streamRef.current?.getTracks().forEach((t) => t.stop());
 
     recorderRef.current = null;
@@ -162,7 +164,9 @@ export function useVoiceRecorder(
       if (recorderRef.current?.state !== "inactive") {
         recorderRef.current?.stop();
       }
-      contextRef.current?.close();
+      if (contextRef.current?.state !== "closed") {
+      contextRef.current?.close().catch(() => {});
+    }
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, [clearSilenceTimer]);

@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
             { role: "user", content: userMessage },
           ],
           temperature: 0.85,
-          max_completion_tokens: 400,
+          max_completion_tokens: 512,
         }),
       }
     );
@@ -82,7 +82,21 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await response.json();
-    const text = result.choices?.[0]?.message?.content?.trim() ?? "";
+    let text = result.choices?.[0]?.message?.content?.trim() ?? "";
+
+    // If response was cut off mid-sentence, add ellipsis
+    const finishReason = result.choices?.[0]?.finish_reason;
+    if (finishReason === "length" && text && !/[.!?]$/.test(text)) {
+      // Trim to last complete sentence
+      const lastSentenceEnd = Math.max(
+        text.lastIndexOf(". "),
+        text.lastIndexOf("! "),
+        text.lastIndexOf("? ")
+      );
+      if (lastSentenceEnd > text.length * 0.3) {
+        text = text.substring(0, lastSentenceEnd + 1);
+      }
+    }
 
     return NextResponse.json({ text });
   } catch (error) {
