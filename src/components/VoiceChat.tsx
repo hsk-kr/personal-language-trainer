@@ -5,6 +5,7 @@ import { Friend, Message, ConversationStatus } from "@/types";
 import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
 import { ChatBubble } from "./ChatBubble";
 import { MicIndicator } from "./MicIndicator";
+import { playBeep } from "@/lib/beep";
 
 interface VoiceChatProps {
   readonly friend: Friend;
@@ -135,6 +136,7 @@ export function VoiceChat({ friend }: VoiceChatProps) {
 
         // Resume listening (small delay to avoid echo pickup)
         await new Promise((r) => setTimeout(r, 500));
+        playBeep();
         console.log("[VoiceChat] Resuming mic...");
         setStatus("listening");
         recorderRef.current.start();

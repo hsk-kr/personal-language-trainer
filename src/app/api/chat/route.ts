@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           model: CHAT_MODEL,
           messages: [
-            { role: "system", content: friend.personality + "\n\nIMPORTANT: Your response will be read aloud by a text-to-speech engine. NEVER use markdown, asterisks, bullet points, emojis, or any special formatting. Write plain conversational text only. Use quotation marks for quoting words." },
+            { role: "system", content: friend.personality + "\n\nIMPORTANT RULES:\n1. Your response will be read aloud by a text-to-speech engine. NEVER use markdown, asterisks, bullet points, emojis, or any special formatting. Write plain conversational text only. Use quotation marks for quoting words.\n2. Speak naturally and conversationally — like a real human talking, not writing. Use contractions (I'm, don't, can't, gonna, wanna). Use filler words occasionally (like, well, I mean, you know). React naturally with expressions (oh, wow, huh, hmm, right). Sound like a real person, not an AI." },
             ...messages.slice(-20).map((m) => ({
               role: m.role,
               content: m.content,
