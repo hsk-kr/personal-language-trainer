@@ -6,6 +6,7 @@ export interface Friend {
   readonly description: string;
   readonly personality: string;
   readonly voice: string;
+  readonly voiceStyle: string;
   readonly gradient: string;
   readonly bgColor: string;
 }

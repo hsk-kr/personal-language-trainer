@@ -121,7 +121,7 @@ export function VoiceChat({ friend }: VoiceChatProps) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               text: responseText,
-              voice: friend.voice,
+              friendId: friend.id,
             }),
           });
 
