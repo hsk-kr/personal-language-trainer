@@ -74,9 +74,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text: friend?.voiceStyle
-                ? `${friend.voiceStyle}: ${cleanText}`
-                : cleanText }],
+              parts: [{ text: cleanText }],
             },
           ],
           generationConfig: {
