@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac } from "crypto";
 
 const COOKIE_NAME = "session";
-
-function isValidSession(request: NextRequest): boolean {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) return false;
-
-  const session = request.cookies.get(COOKIE_NAME);
-  if (!session) return false;
-
-  const expected = createHmac("sha256", secret).update("session").digest("hex");
-  return session.value === expected;
-}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -26,16 +14,16 @@ export function middleware(request: NextRequest) {
   }
 
   // Check auth for everything else
-  if (!isValidSession(request)) {
-    // API routes return 401
+  const session = request.cookies.get(COOKIE_NAME);
+  const secret = process.env.AUTH_SECRET;
+
+  if (!session || !secret || session.value !== secret) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
-
-    // Pages redirect to login
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

@@ -1,6 +1,3 @@
-import { createHmac } from "crypto";
-import { cookies } from "next/headers";
-
 const COOKIE_NAME = "session";
 
 function getSecret(): string {
@@ -15,19 +12,12 @@ function getPassword(): string {
   return password;
 }
 
-export function generateSessionToken(): string {
-  return createHmac("sha256", getSecret()).update("session").digest("hex");
+export function getSessionToken(): string {
+  return getSecret();
 }
 
 export function verifyPassword(input: string): boolean {
   return input === getPassword();
-}
-
-export async function isAuthenticated(): Promise<boolean> {
-  const cookieStore = await cookies();
-  const session = cookieStore.get(COOKIE_NAME);
-  if (!session) return false;
-  return session.value === generateSessionToken();
 }
 
 export { COOKIE_NAME };

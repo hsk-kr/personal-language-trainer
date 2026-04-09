@@ -1,4 +1,4 @@
-import { verifyPassword, generateSessionToken, COOKIE_NAME } from "@/lib/auth";
+import { verifyPassword, getSessionToken, COOKIE_NAME } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const token = generateSessionToken();
+    const token = getSessionToken();
     const response = NextResponse.json({ ok: true });
 
     response.cookies.set(COOKIE_NAME, token, {
