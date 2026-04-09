@@ -153,11 +153,11 @@ export function VoiceChat({ friend }: VoiceChatProps) {
         }
         playBeep();
         console.log("[VoiceChat] Resuming mic...");
-        setStatus("listening");
         if (!manualModeRef.current) {
+          setStatus("listening");
           recorderRef.current.start();
         } else {
-          startManualRecording();
+          setStatus("ready");
         }
       } catch (err) {
         console.error("[VoiceChat] Error:", err);
@@ -165,12 +165,12 @@ export function VoiceChat({ friend }: VoiceChatProps) {
         setStatus("error");
 
         setTimeout(() => {
-          setStatus("listening");
           setError(null);
           if (!manualModeRef.current) {
+            setStatus("listening");
             recorderRef.current.start();
           } else {
-            startManualRecording();
+            setStatus("ready");
           }
         }, 2000);
       }
@@ -240,17 +240,25 @@ export function VoiceChat({ friend }: VoiceChatProps) {
     manualChunksRef.current = [];
   }, []);
 
-  // Spacebar to stop recording in manual mode
+  const startManualTalk = useCallback(() => {
+    setStatus("listening");
+    startManualRecording();
+  }, [startManualRecording]);
+
+  // Spacebar: start recording when ready, stop when listening (manual mode)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space" && manualModeRef.current && status === "listening") {
-        e.preventDefault();
+      if (e.code !== "Space" || !manualModeRef.current) return;
+      e.preventDefault();
+      if (status === "ready") {
+        startManualTalk();
+      } else if (status === "listening") {
         stopManualRecording();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [status, stopManualRecording]);
+  }, [status, stopManualRecording, startManualTalk]);
 
   const handleStartChat = useCallback(async () => {
     setStatus("processing");
@@ -287,18 +295,18 @@ export function VoiceChat({ friend }: VoiceChatProps) {
       }
 
       // Now start listening
-      setStatus("listening");
       if (manualModeRef.current) {
-        startManualRecording();
+        setStatus("ready");
       } else {
+        setStatus("listening");
         recorderRef.current.start();
       }
     } catch (err) {
       console.error("[VoiceChat] Greeting error:", err);
-      setStatus("listening");
       if (manualModeRef.current) {
-        startManualRecording();
+        setStatus("ready");
       } else {
+        setStatus("listening");
         recorderRef.current.start();
       }
     }
@@ -383,11 +391,24 @@ export function VoiceChat({ friend }: VoiceChatProps) {
       {status !== "idle" && (
         <div className="border-t border-white/5 bg-neutral-900/50 px-4 py-6">
           <div className="flex items-center justify-center gap-4">
-            {/* Manual mode: send button */}
+            {/* Manual mode: ready state — press to start */}
+            {manualMode && status === "ready" && (
+              <button
+                onClick={startManualTalk}
+                className={`rounded-full bg-gradient-to-r ${friend.gradient} p-4 text-white transition-transform hover:scale-105`}
+                title="Start talking (or press Space)"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3zM19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" />
+                </svg>
+              </button>
+            )}
+
+            {/* Manual mode: recording — press to send */}
             {manualMode && status === "listening" && (
               <button
                 onClick={stopManualRecording}
-                className={`rounded-full bg-gradient-to-r ${friend.gradient} p-4 text-white transition-transform hover:scale-105`}
+                className="rounded-full bg-red-600 p-4 text-white animate-pulse transition-transform hover:scale-105"
                 title="Send (or press Space)"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -405,11 +426,13 @@ export function VoiceChat({ friend }: VoiceChatProps) {
               />
             )}
 
-            {/* Manual mode indicator */}
-            {manualMode && status === "listening" && (
+            {/* Manual mode status text */}
+            {manualMode && (status === "ready" || status === "listening") && (
               <div className="flex flex-col items-center gap-1">
-                <div className={`h-3 w-3 rounded-full bg-red-500 animate-pulse`} />
-                <span className="text-xs text-neutral-400">Recording... press Space to send</span>
+                {status === "listening" && <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />}
+                <span className="text-xs text-neutral-400">
+                  {status === "ready" ? "Press Space to talk" : "Recording... Space to send"}
+                </span>
               </div>
             )}
 

@@ -20,6 +20,7 @@ export interface Message {
 
 export type ConversationStatus =
   | "idle"
+  | "ready"
   | "listening"
   | "detecting-speech"
   | "speaking"

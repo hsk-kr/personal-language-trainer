@@ -10,6 +10,7 @@ interface MicIndicatorProps {
 
 const STATUS_LABELS: Record<ConversationStatus, string> = {
   idle: "Tap to start",
+  ready: "Press Space to talk",
   listening: "Listening...",
   "detecting-speech": "Listening...",
   speaking: "Speaking...",
