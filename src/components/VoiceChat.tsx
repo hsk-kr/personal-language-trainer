@@ -15,6 +15,8 @@ export function VoiceChat({ friend }: VoiceChatProps) {
   const [messages, setMessages] = useState<readonly Message[]>([]);
   const [status, setStatus] = useState<ConversationStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const audioEnabledRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesRef = useRef<readonly Message[]>([]);
@@ -26,6 +28,10 @@ export function VoiceChat({ friend }: VoiceChatProps) {
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    audioEnabledRef.current = audioEnabled;
+  }, [audioEnabled]);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -112,30 +118,30 @@ export function VoiceChat({ friend }: VoiceChatProps) {
         console.log("[VoiceChat] Chat response:", responseText);
         addMessage("assistant", responseText);
 
-        // Step 3: Text-to-Speech (non-fatal — skip audio if TTS fails)
-        setStatus("speaking");
-        console.log("[VoiceChat] Sending to TTS...");
-        try {
-          const ttsRes = await fetch("/api/tts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              text: responseText,
-              friendId: friend.id,
-            }),
-          });
+        // Step 3: Text-to-Speech (only if audio enabled)
+        if (audioEnabledRef.current) {
+          setStatus("speaking");
+          console.log("[VoiceChat] Sending to TTS...");
+          try {
+            const ttsRes = await fetch("/api/tts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                text: responseText,
+                friendId: friend.id,
+              }),
+            });
 
-          if (ttsRes.ok) {
-            await playAudio(await ttsRes.arrayBuffer());
-          } else {
-            console.warn("[VoiceChat] TTS failed:", ttsRes.status, await ttsRes.text());
+            if (ttsRes.ok) {
+              await playAudio(await ttsRes.arrayBuffer());
+            } else {
+              console.warn("[VoiceChat] TTS failed:", ttsRes.status, await ttsRes.text());
+            }
+          } catch (ttsErr) {
+            console.warn("[VoiceChat] TTS error (skipping audio):", ttsErr);
           }
-        } catch (ttsErr) {
-          console.warn("[VoiceChat] TTS error (skipping audio):", ttsErr);
+          await new Promise((r) => setTimeout(r, 500));
         }
-
-        // Resume listening (small delay to avoid echo pickup)
-        await new Promise((r) => setTimeout(r, 500));
         playBeep();
         console.log("[VoiceChat] Resuming mic...");
         setStatus("listening");
@@ -184,16 +190,18 @@ export function VoiceChat({ friend }: VoiceChatProps) {
       const { text: greeting } = await chatRes.json();
       addMessage("assistant", greeting);
 
-      // Speak the greeting
-      setStatus("speaking");
-      const ttsRes = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: greeting, voice: friend.voice }),
-      });
+      // Speak the greeting (only if audio enabled)
+      if (audioEnabledRef.current) {
+        setStatus("speaking");
+        const ttsRes = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: greeting, friendId: friend.id }),
+        });
 
-      if (ttsRes.ok) {
-        await playAudio(await ttsRes.arrayBuffer());
+        if (ttsRes.ok) {
+          await playAudio(await ttsRes.arrayBuffer());
+        }
       }
 
       // Now start listening
@@ -291,6 +299,37 @@ export function VoiceChat({ friend }: VoiceChatProps) {
               volume={recorder.volume}
               gradient={friend.gradient}
             />
+            <button
+              onClick={() => setAudioEnabled((v) => !v)}
+              className={`rounded-full p-3 transition-colors ${
+                audioEnabled
+                  ? "bg-blue-600 text-white"
+                  : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
+              }`}
+              title={audioEnabled ? "Disable voice" : "Enable voice"}
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                {audioEnabled ? (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z"
+                  />
+                ) : (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"
+                  />
+                )}
+              </svg>
+            </button>
             <button
               onClick={handleStopChat}
               className="rounded-full bg-neutral-800 p-3 text-neutral-400 transition-colors hover:bg-neutral-700 hover:text-white"
