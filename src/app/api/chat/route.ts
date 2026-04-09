@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           model: CHAT_MODEL,
           messages: [
-            { role: "system", content: friend.personality + "\n\nIMPORTANT RULES:\n1. Your response will be read aloud by a text-to-speech engine. NEVER use markdown, asterisks, bullet points, emojis, or any special formatting. Write plain conversational text only. Use quotation marks for quoting words.\n2. Speak naturally and conversationally — like a real human talking, not writing. Use contractions (I'm, don't, can't, gonna, wanna). Use filler words occasionally (like, well, I mean, you know). React naturally with expressions (oh, wow, huh, hmm, right). Sound like a real person, not an AI." },
+            { role: "system", content: friend.personality + "\n\nIMPORTANT RULES:\n1. Your response will be read aloud by a text-to-speech engine. NEVER use markdown, asterisks, bullet points, emojis, or any special formatting. Write plain conversational text only. Use quotation marks for quoting words.\n2. Speak naturally and conversationally — like a real human talking, not writing. Use contractions (I'm, don't, can't, gonna, wanna). Use filler words occasionally (like, well, I mean, you know). React naturally with expressions (oh, wow, huh, hmm, right). Sound like a real person, not an AI.\n3. ALWAYS respond in English. Even if the user speaks in another language, reply in English only. If their message seems like a non-English transcription error, just say something like 'Hey, I didn't quite catch that, could you say it again in English?'" },
             ...messages.slice(-20).map((m) => ({
               role: m.role,
               content: m.content,
